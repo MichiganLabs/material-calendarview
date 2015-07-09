@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+Version 0.6.1 *(2015-06-29)*
+----------------------------
+
+* Fix: Hidding top bar will no longer distort the calendar
+* Change: top bar visibility, first day of the week, and tile size are now saved during rotation
+
+Version 0.6.0 *(2015-06-24)*
+----------------------------
+
+* New: DayViewDecorators now support disabling individual days
+* New: You can set custom masks for arrows
+* New: You can now set the top bar (arrows and title) as no visible
+
 Version 0.5.0 *(2015-06-17)*
 ----------------------------
 

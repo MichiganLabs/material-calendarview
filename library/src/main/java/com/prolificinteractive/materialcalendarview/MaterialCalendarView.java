@@ -57,7 +57,7 @@ import java.util.Locale;
 public class MaterialCalendarView extends FrameLayout {
 
     /**
-     *
+     * Default tile size in DIPs
      */
     public static final int DEFAULT_TILE_SIZE_DP = 44;
 
@@ -70,6 +70,7 @@ public class MaterialCalendarView extends FrameLayout {
     private final ViewPager pager;
     private final MonthPagerAdapter adapter;
     private CalendarDay currentMonth;
+    private LinearLayout topbar;
 
     private final ArrayList<DayViewDecorator> dayViewDecorators = new ArrayList<>();
 
@@ -148,7 +149,6 @@ public class MaterialCalendarView extends FrameLayout {
 
         titleChanger = new TitleChanger(title);
         titleChanger.setTitleFormatter(DEFAULT_TITLE_FORMATTER);
-
         adapter = new MonthPagerAdapter(this);
         pager.setAdapter(adapter);
         pager.setOnPageChangeListener(pageChangeListener);
@@ -257,7 +257,7 @@ public class MaterialCalendarView extends FrameLayout {
         p.gravity = Gravity.CENTER;
         addView(root, p);
 
-        LinearLayout topbar = new LinearLayout(getContext());
+        topbar = new LinearLayout(getContext());
         topbar.setOrientation(LinearLayout.HORIZONTAL);
         topbar.setClipChildren(false);
         topbar.setClipToPadding(false);
@@ -308,16 +308,32 @@ public class MaterialCalendarView extends FrameLayout {
     }
 
     /**
+     * @return the size of tiles in pixels
+     */
+    public int getTileSize() {
+        return root.getLayoutParams().width / MonthView.DEFAULT_DAYS_IN_WEEK;
+    }
+
+    /**
      * Set the size of each tile that makes up the calendar.
-     * Each day is 1 tile, so the widget is 7 tiles wide and 8 tiles tall.
+     * Each day is 1 tile, so the widget is 7 tiles wide and 7 or 8 tiles tall
+     * depending on the visibility of the {@link #topbar}.
      *
      * @param size the new size for each tile in pixels
      */
     public void setTileSize(int size) {
-        LayoutParams p = new LayoutParams(
-                size * MonthView.DEFAULT_DAYS_IN_WEEK,
-                size * (MonthView.DEFAULT_MONTH_TILE_HEIGHT + 1)
-        );
+        LayoutParams p;
+        if (getTopbarVisible()) {
+            p = new LayoutParams(
+                    size * MonthView.DEFAULT_DAYS_IN_WEEK,
+                    size * (MonthView.DEFAULT_MONTH_TILE_HEIGHT + 1)
+            );
+        } else { // topbar.getVisibility() == View.GONE
+            p = new LayoutParams(
+                    size * MonthView.DEFAULT_DAYS_IN_WEEK,
+                    size * (MonthView.DEFAULT_MONTH_TILE_HEIGHT)
+            );
+        }
         p.gravity = Gravity.CENTER;
         root.setLayoutParams(p);
     }
@@ -492,7 +508,7 @@ public class MaterialCalendarView extends FrameLayout {
     }
 
     /**
-     * @return The current day shown, will be set to first day of the month
+     * @return The current month shown, will be set to first day of the month
      */
     public CalendarDay getCurrentDate() {
         return adapter.getItem(pager.getCurrentItem());
@@ -502,11 +518,19 @@ public class MaterialCalendarView extends FrameLayout {
      * @param day a CalendarDay to focus the calendar on. Null will do nothing
      */
     public void setCurrentDate(@Nullable CalendarDay day) {
+        setCurrentDate(day, true);
+    }
+
+    /**
+     * @param day a CalendarDay to focus the calendar on. Null will do nothing
+     * @param useSmoothScroll use smooth scroll when changing months.
+     */
+    public void setCurrentDate(@Nullable CalendarDay day, boolean useSmoothScroll) {
         if(day == null) {
             return;
         }
         int index = adapter.getIndexForDay(day);
-        pager.setCurrentItem(index);
+        pager.setCurrentItem(index, useSmoothScroll);
         updateUi();
     }
 
@@ -666,6 +690,31 @@ public class MaterialCalendarView extends FrameLayout {
         setTitleMonths(getResources().getTextArray(arrayRes));
     }
 
+    /**
+     * Sets the visibility {@link #topbar}, which contains
+     * the previous month button {@link #buttonPast}, next month button {@link #buttonFuture},
+     * and the month title {@link #title}.
+     *
+     * @param visible Boolean indicating if the topbar is visible
+     */
+    public void setTopbarVisible(boolean visible) {
+        int tileSize = getTileSize();
+        if (visible) {
+            topbar.setVisibility(View.VISIBLE);
+        }
+        else {
+            topbar.setVisibility(View.GONE);
+        }
+        setTileSize(tileSize);
+    }
+
+    /**
+     * @return true if the topbar is visible
+     */
+    public boolean getTopbarVisible() {
+        return topbar.getVisibility() == View.VISIBLE;
+    }
+
     @Override
     protected Parcelable onSaveInstanceState() {
         SavedState ss = new SavedState(super.onSaveInstanceState());
@@ -676,6 +725,9 @@ public class MaterialCalendarView extends FrameLayout {
         ss.minDate = getMinimumDate();
         ss.maxDate = getMaximumDate();
         ss.selectedDate = getSelectedDate();
+        ss.firstDayOfWeek = getFirstDayOfWeek();
+        ss.tileSizePx = getTileSize();
+        ss.topbarVisible = getTopbarVisible();
         return ss;
     }
 
@@ -689,6 +741,9 @@ public class MaterialCalendarView extends FrameLayout {
         setShowOtherDates(ss.showOtherDates);
         setRangeDates(ss.minDate, ss.maxDate);
         setSelectedDate(ss.selectedDate);
+        setFirstDayOfWeek(ss.firstDayOfWeek);
+        setTileSize(ss.tileSizePx);
+        setTopbarVisible(ss.topbarVisible);
     }
 
     @Override
@@ -720,6 +775,9 @@ public class MaterialCalendarView extends FrameLayout {
         CalendarDay minDate = null;
         CalendarDay maxDate = null;
         CalendarDay selectedDate = null;
+        int firstDayOfWeek = Calendar.SUNDAY;
+        int tileSizePx = 0;
+        boolean topbarVisible = true;
 
         SavedState(Parcelable superState) {
             super(superState);
@@ -735,6 +793,9 @@ public class MaterialCalendarView extends FrameLayout {
             out.writeParcelable(minDate, 0);
             out.writeParcelable(maxDate, 0);
             out.writeParcelable(selectedDate, 0);
+            out.writeInt(firstDayOfWeek);
+            out.writeInt(tileSizePx);
+            out.writeInt(topbarVisible ? 1 : 0);
         }
 
         public static final Parcelable.Creator<SavedState> CREATOR
@@ -758,6 +819,9 @@ public class MaterialCalendarView extends FrameLayout {
             minDate = in.readParcelable(loader);
             maxDate = in.readParcelable(loader);
             selectedDate = in.readParcelable(loader);
+            firstDayOfWeek = in.readInt();
+            tileSizePx = in.readInt();
+            topbarVisible = in.readInt() == 1;
         }
     }
 
@@ -788,12 +852,17 @@ public class MaterialCalendarView extends FrameLayout {
 
     /**
      *
-     * @return The first day of the week as a java.util.Calendar day constant.
+     * @return The first day of the week as a {@linkplain Calendar} day constant.
      */
     public int getFirstDayOfWeek() {
         return adapter.getFirstDayOfWeek();
     }
 
+    /**
+     * Add a collection of day decorators
+     *
+     * @param decorators decorators to add
+     */
     public void addDecorators(Collection<? extends DayViewDecorator> decorators) {
         if(decorators == null) {
             return;
@@ -803,10 +872,20 @@ public class MaterialCalendarView extends FrameLayout {
         adapter.setDecorators(dayViewDecorators);
     }
 
+    /**
+     * Add several day decorators
+     *
+     * @param decorators decorators to add
+     */
     public void addDecorators(DayViewDecorator... decorators) {
         addDecorators(Arrays.asList(decorators));
     }
 
+    /**
+     * Add a day decorator
+     *
+     * @param decorator decorator to add
+     */
     public void addDecorator(DayViewDecorator decorator) {
         if(decorator == null) {
             return;
@@ -815,16 +894,28 @@ public class MaterialCalendarView extends FrameLayout {
         adapter.setDecorators(dayViewDecorators);
     }
 
+    /**
+     * Remove all decorators
+     */
     public void removeDecorators() {
         dayViewDecorators.clear();
         adapter.setDecorators(dayViewDecorators);
     }
 
+    /**
+     * Remove a specific decorator instance. Same rules as {@linkplain List#remove(Object)}
+     *
+     * @param decorator decorator to remove
+     */
     public void removeDecorator(DayViewDecorator decorator) {
         dayViewDecorators.remove(decorator);
         adapter.setDecorators(dayViewDecorators);
     }
 
+    /**
+     * Invalidate decorators after one has changed internally. That is, if a decorator mutates, you
+     * should call this method to update the widget.
+     */
     public void invalidateDecorators() {
         adapter.invalidateDecorators();
     }
@@ -1113,5 +1204,4 @@ public class MaterialCalendarView extends FrameLayout {
             return firstDayOfTheWeek;
         }
     }
-
 }

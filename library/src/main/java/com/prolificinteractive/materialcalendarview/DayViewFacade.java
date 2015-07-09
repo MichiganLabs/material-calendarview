@@ -17,8 +17,9 @@ public final class DayViewFacade {
     private Drawable backgroundDrawable = null;
     private Drawable selectionDrawable = null;
     private final LinkedList<Span> spans = new LinkedList<>();
+    private boolean daysDisabled = false;
 
-    public DayViewFacade() {
+    DayViewFacade() {
         isDecorated = false;
     }
 
@@ -62,18 +63,32 @@ public final class DayViewFacade {
         }
     }
 
-    protected void reset() {
+    /**
+     * <p>Set days to be in a disabled state, or re-enabled.</p>
+     *
+     * <p>Note, passing true here will <b>not</b> override minimum and maximum dates, if set.
+     * This will only re-enable disabled dates.</p>
+     *
+     * @param daysDisabled true to disable days, false to re-enable days
+     */
+    public void setDaysDisabled(boolean daysDisabled) {
+        this.daysDisabled = daysDisabled;
+        this.isDecorated = true;
+    }
+
+    void reset() {
         backgroundDrawable = null;
         selectionDrawable = null;
         spans.clear();
         isDecorated = false;
+        daysDisabled = false;
     }
 
     /**
      * Apply things set this to other
      * @param other facade to apply our data to
      */
-    protected void applyTo(DayViewFacade other) {
+    void applyTo(DayViewFacade other) {
         if(selectionDrawable != null) {
             other.setSelectionDrawable(selectionDrawable);
         }
@@ -82,25 +97,34 @@ public final class DayViewFacade {
         }
         other.spans.addAll(spans);
         other.isDecorated |= this.isDecorated;
+        other.daysDisabled = daysDisabled;
     }
 
-    protected boolean isDecorated() {
+    boolean isDecorated() {
         return isDecorated;
     }
 
-    protected Drawable getSelectionDrawable() {
+    Drawable getSelectionDrawable() {
         return selectionDrawable;
     }
 
-    protected Drawable getBackgroundDrawable() {
+    Drawable getBackgroundDrawable() {
         return backgroundDrawable;
     }
 
-    protected List<Span> getSpans() {
+    List<Span> getSpans() {
         return Collections.unmodifiableList(spans);
     }
 
-    protected static class Span {
+    /**
+     * Are days from this facade disabled
+     * @return true if disabled, false if not re-enabled
+     */
+    public boolean areDaysDisabled() {
+        return daysDisabled;
+    }
+
+    static class Span {
 
         final Object span;
 
